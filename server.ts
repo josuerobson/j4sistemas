@@ -47,6 +47,26 @@ DICAS IMPORTANTES:
       parts: [{ text: m.content }]
     }));
 
+    const chatTools = [{
+      functionDeclarations: [
+        {
+          name: "saveLeadContact",
+          description: "Salva os dados de contato do lead e a descrição do projeto no banco de dados administrativo da J4 Sistemas.",
+          parameters: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING, description: "Nome do cliente/lead (se fornecido)." },
+              email: { type: Type.STRING, description: "E-mail do lead (se fornecido)." },
+              phone: { type: Type.STRING, description: "Telefone ou WhatsApp de contato do lead." },
+              companyName: { type: Type.STRING, description: "Nome da empresa (se fornecido)." },
+              projectDescription: { type: Type.STRING, description: "Ideia do sistema, aplicativo, ERP, CRM ou desafio operacional conversado no chat." }
+            },
+            required: ["phone", "projectDescription"]
+          }
+        }
+      ]
+    }];
+
     // Generate content with function calling tool enabled
     let response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
@@ -58,25 +78,7 @@ DICAS IMPORTANTES:
       config: {
         systemInstruction,
         temperature: 0.7,
-        tools: [{
-          functionDeclarations: [
-            {
-              name: "saveLeadContact",
-              description: "Salva os dados de contato do lead e a descrição do projeto no banco de dados administrativo da J4 Sistemas.",
-              parameters: {
-                type: Type.OBJECT,
-                properties: {
-                  name: { type: Type.STRING, description: "Nome do cliente/lead (se fornecido)." },
-                  email: { type: Type.STRING, description: "E-mail do lead (se fornecido)." },
-                  phone: { type: Type.STRING, description: "Telefone ou WhatsApp de contato do lead." },
-                  companyName: { type: Type.STRING, description: "Nome da empresa (se fornecido)." },
-                  projectDescription: { type: Type.STRING, description: "Ideia do sistema, aplicativo, ERP, CRM ou desafio operacional conversado no chat." }
-                },
-                required: ["phone", "projectDescription"]
-              }
-            }
-          ]
-        }]
+        tools: chatTools
       }
     });
 
@@ -87,23 +89,29 @@ DICAS IMPORTANTES:
         const args = call.args as {
           name?: string;
           email?: string;
-          phone: string;
+          phone?: string;
           companyName?: string;
-          projectDescription: string;
+          projectDescription?: string;
         };
 
+        const phone = args.phone || "Sem telefone";
+        const email = args.email || "contato_chat@j4sistemas.com.br";
+        const name = args.name || "Lead Capturado via Chat";
+        const companyName = args.companyName || "";
+        const projectDesc = args.projectDescription || "Ideia de sistema conversada no chat.";
+
         const uniqueId = `lead_chat_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-        const suggestedCategory = args.projectDescription.length > 40
-          ? args.projectDescription.substring(0, 37) + "..."
-          : args.projectDescription;
+        const suggestedCategory = projectDesc.length > 40
+          ? projectDesc.substring(0, 37) + "..."
+          : projectDesc;
 
         const inquiry = {
           id: uniqueId,
-          name: args.name || "Lead Capturado via Chat",
-          email: args.email || "contato_chat@j4sistemas.com.br",
-          phone: args.phone,
-          companyName: args.companyName || "",
-          projectDescription: args.projectDescription,
+          name: name,
+          email: email,
+          phone: phone,
+          companyName: companyName,
+          projectDescription: projectDesc,
           estimatedBudget: "Sob consulta (Via Chat)",
           urgency: "medium" as const,
           createdAt: new Date().toISOString(),
@@ -114,7 +122,7 @@ DICAS IMPORTANTES:
             techStack: ["A definir em reunião"],
             complexity: "Média" as const,
             roiEstimate: "A ser calculado após detalhamento do projeto.",
-            detailedBlueprint: `### Pré-proposta gerada via Chat\n\nEste lead enviou seus dados através da conversa com o assistente virtual da J4 Sistemas.\n\n**Descrição do Projeto fornecida no chat:**\n${args.projectDescription}\n\n**Dados de Contato:**\n- **Nome:** ${args.name || "Não informado"}\n- **E-mail:** ${args.email || "Não informado"}\n- **WhatsApp/Telefone:** ${args.phone}`
+            detailedBlueprint: `### Pré-proposta gerada via Chat\n\nEste lead enviou seus dados através da conversa com o assistente virtual da J4 Sistemas.\n\n**Descrição do Projeto fornecida no chat:**\n${projectDesc}\n\n**Dados de Contato:**\n- **Nome:** ${name}\n- **E-mail:** ${email}\n- **WhatsApp/Telefone:** ${phone}`
           }
         };
 
@@ -122,20 +130,23 @@ DICAS IMPORTANTES:
         await saveInquiry(inquiry);
 
         // Feed function response back to Gemini to generate the final conversational text reply
+        const modelTurn = response.candidates?.[0]?.content || {
+          role: "model",
+          parts: [{ functionCall: { name: call.name, args: call.args, id: call.id } }]
+        };
+
         const contents = [
           { role: "user", parts: [{ text: "Iniciar conversa de consulta" }] },
           ...chatHistory,
           { role: "user", parts: [{ text: currentInput }] },
-          {
-            role: "model",
-            parts: [{ functionCall: { name: call.name, args: call.args } }]
-          },
+          modelTurn,
           {
             role: "user",
             parts: [{
               functionResponse: {
                 name: call.name,
-                response: { success: true, message: "Lead salvo com sucesso no banco de dados administrativo da J4 Sistemas." }
+                response: { success: true, message: "Lead salvo com sucesso no banco de dados administrativo da J4 Sistemas." },
+                id: call.id
               }
             }]
           }
@@ -147,6 +158,7 @@ DICAS IMPORTANTES:
           config: {
             systemInstruction,
             temperature: 0.7,
+            tools: chatTools
           }
         });
       }
