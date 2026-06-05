@@ -155,6 +155,39 @@ export async function getAllInquiries(): Promise<Inquiry[]> {
   return readLocalDb();
 }
 
+// Get inquiry by ID
+export async function getInquiryById(id: string): Promise<Inquiry | null> {
+  const { isPostgres } = await initDb();
+
+  if (isPostgres && pool) {
+    try {
+      const res = await pool.query("SELECT * FROM contacts WHERE id = $1", [id]);
+      if (res.rows.length > 0) {
+        const row = res.rows[0];
+        return {
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          companyName: row.company_name,
+          projectDescription: row.project_description,
+          estimatedBudget: row.estimated_budget,
+          urgency: row.urgency as any,
+          createdAt: row.created_at,
+          status: row.status as any,
+          aiAnalysis: row.ai_analysis,
+        };
+      }
+      return null;
+    } catch (pgError) {
+      console.error("[DB] Erro ao recuperar inquiry por ID no PostgreSQL, lendo do local...", pgError);
+    }
+  }
+
+  const localDb = readLocalDb();
+  return localDb.find((x) => x.id === id) || null;
+}
+
 // Update status
 export async function updateInquiryStatus(id: string, status: Inquiry["status"]): Promise<void> {
   const { isPostgres } = await initDb();

@@ -3,7 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { initDb, saveInquiry, getAllInquiries, updateInquiryStatus, deleteInquiry, updateInquiryAnalysis } from "./server-db";
+import { initDb, saveInquiry, getAllInquiries, updateInquiryStatus, deleteInquiry, updateInquiryAnalysis, getInquiryById } from "./server-db";
 
 dotenv.config();
 
@@ -25,7 +25,8 @@ const ai = new GoogleGenAI({
 // 1. API: AI Consulting chat proxy to Gemini
 app.post("/api/gemini/chat", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { messages, currentInput } = req.body;
+    const { messages, currentInput, leadId } = req.body;
+    let activeLeadId = leadId;
 
     if (!messages || !Array.isArray(messages)) {
       res.status(400).json({ error: "Parâmetro 'messages' inválido ou ausente." });
@@ -101,6 +102,7 @@ DICAS IMPORTANTES:
         const projectDesc = args.projectDescription || "Ideia de sistema conversada no chat.";
 
         const uniqueId = `lead_chat_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+        activeLeadId = uniqueId;
         const suggestedCategory = projectDesc.length > 40
           ? projectDesc.substring(0, 37) + "..."
           : projectDesc;
@@ -178,10 +180,28 @@ DICAS IMPORTANTES:
           console.error("Erro ao atualizar histórico de chat no lead:", updateErr);
         }
       }
+    } else if (activeLeadId) {
+      // No function call in this turn, but we have an active lead! Update the chat history in the database.
+      try {
+        const finalReplyText = response.text || "Desculpe, não consegui processar a resposta no momento. Como posso ajudar com seu sistema sob medida?";
+        const existingInquiry = await getInquiryById(activeLeadId);
+        if (existingInquiry && existingInquiry.aiAnalysis) {
+          const finalAssistantMsg = {
+            id: `assistant-${Date.now()}`,
+            role: "model" as const,
+            content: finalReplyText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          existingInquiry.aiAnalysis.chatHistory = [...messages, finalAssistantMsg];
+          await updateInquiryAnalysis(activeLeadId, existingInquiry.aiAnalysis);
+        }
+      } catch (updateErr) {
+        console.error("Erro ao atualizar histórico de chat contínuo:", updateErr);
+      }
     }
 
     const replyText = response.text || "Desculpe, não consegui processar a resposta no momento. Como posso ajudar com seu sistema sob medida?";
-    res.json({ reply: replyText });
+    res.json({ reply: replyText, leadId: activeLeadId });
   } catch (error: any) {
     console.error("Erro no chat do Gemini:", error);
     res.status(500).json({ error: error.message || "Erro interno do servidor ao consultar a inteligência artificial." });

@@ -14,6 +14,7 @@ export function AIAssistant() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [leadId, setLeadId] = useState<string | null>(null);
   const messageContainerRef = useRef<HTMLDivElement>(null);
 
   const presets = [
@@ -64,7 +65,8 @@ export function AIAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...messages, userMsg],
-          currentInput: textToSend
+          currentInput: textToSend,
+          leadId: leadId
         })
       });
 
@@ -73,6 +75,10 @@ export function AIAssistant() {
       }
 
       const data = await response.json();
+      
+      if (data.leadId) {
+        setLeadId(data.leadId);
+      }
       
       const assistantMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
