@@ -3,7 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
-import { initDb, saveInquiry, getAllInquiries, updateInquiryStatus, deleteInquiry } from "./server-db";
+import { initDb, saveInquiry, getAllInquiries, updateInquiryStatus, deleteInquiry, updateInquiryAnalysis } from "./server-db";
 
 dotenv.config();
 
@@ -69,7 +69,7 @@ DICAS IMPORTANTES:
 
     // Generate content with function calling tool enabled
     let response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: [
         { role: "user", parts: [{ text: "Iniciar conversa de consulta" }] },
         ...chatHistory,
@@ -122,7 +122,8 @@ DICAS IMPORTANTES:
             techStack: ["A definir em reunião"],
             complexity: "Média" as const,
             roiEstimate: "A ser calculado após detalhamento do projeto.",
-            detailedBlueprint: `### Pré-proposta gerada via Chat\n\nEste lead enviou seus dados através da conversa com o assistente virtual da J4 Sistemas.\n\n**Descrição do Projeto fornecida no chat:**\n${projectDesc}\n\n**Dados de Contato:**\n- **Nome:** ${name}\n- **E-mail:** ${email}\n- **WhatsApp/Telefone:** ${phone}`
+            detailedBlueprint: `### Pré-proposta gerada via Chat\n\nEste lead enviou seus dados através da conversa com o assistente virtual da J4 Sistemas.\n\n**Descrição do Projeto fornecida no chat:**\n${projectDesc}\n\n**Dados de Contato:**\n- **Nome:** ${name}\n- **E-mail:** ${email}\n- **WhatsApp/Telefone:** ${phone}`,
+            chatHistory: messages
           }
         };
 
@@ -153,7 +154,7 @@ DICAS IMPORTANTES:
         ];
 
         response = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+          model: "gemini-2.5-flash",
           contents,
           config: {
             systemInstruction,
@@ -161,6 +162,21 @@ DICAS IMPORTANTES:
             tools: chatTools
           }
         });
+
+        // Update database with final assistant response in history
+        try {
+          const finalReplyText = response.text || "Desculpe, não consegui processar a resposta no momento. Como posso ajudar com seu sistema sob medida?";
+          const finalAssistantMsg = {
+            id: `assistant-final-${Date.now()}`,
+            role: "model" as const,
+            content: finalReplyText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          inquiry.aiAnalysis.chatHistory = [...messages, finalAssistantMsg];
+          await updateInquiryAnalysis(inquiry.id, inquiry.aiAnalysis);
+        } catch (updateErr) {
+          console.error("Erro ao atualizar histórico de chat no lead:", updateErr);
+        }
       }
     }
 
@@ -201,7 +217,7 @@ A resposta deve conter:
 - detailedBlueprint: Um texto em markdown descrevendo a visão arquitetural para convencer o cliente de que o desenvolvimento sob medida com a J4 Sistemas - Sistemas Personalizados é robustamente superior a qualquer software pronto.`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction,

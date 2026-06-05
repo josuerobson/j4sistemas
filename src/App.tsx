@@ -95,7 +95,7 @@ export default function App() {
               onClick={() => handleScrollTo("contato-modulo")}
               className="bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold px-4.5 py-2.5 rounded-xl transition-all duration-200 shadow-md shadow-blue-600/15 group flex items-center gap-1.5 cursor-pointer max-w-xs capitalize hover:scale-105 active:scale-95"
             >
-              <span>Gerar Blueprint</span>
+              <span>Solicitar Contato</span>
               <LucideIcons.ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>

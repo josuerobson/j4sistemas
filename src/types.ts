@@ -47,6 +47,7 @@ export interface Inquiry {
     complexity: 'Baixa' | 'Média' | 'Alta' | 'Altíssima';
     roiEstimate: string;
     detailedBlueprint: string;
+    chatHistory?: ChatMessage[];
   };
 }
 

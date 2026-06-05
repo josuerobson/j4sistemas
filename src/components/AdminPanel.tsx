@@ -823,7 +823,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                                   <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block">Stack Tecnológico Recomandada</span>
                                   <div className="space-y-1">
                                     {selectedLead.aiAnalysis.techStack.map((tech, idx) => (
-                                      <div key={idx} className="text-[10px] text-slate-600 flex items-center gap-1.5 font-bold">
+                                        <div key={idx} className="text-[10px] text-slate-600 flex items-center gap-1.5 font-bold">
                                         <div className="w-1 h-1 bg-blue-500 rounded-full" />
                                         <span>{tech}</span>
                                       </div>
@@ -837,6 +837,23 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
                                     {renderMarkdown(selectedLead.aiAnalysis.detailedBlueprint)}
                                   </div>
                                 </div>
+
+                                {selectedLead.aiAnalysis.chatHistory && selectedLead.aiAnalysis.chatHistory.length > 0 && (
+                                  <div className="space-y-2 border-t border-slate-150 pt-3">
+                                    <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block">Histórico da Conversa no Chat</span>
+                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/60 space-y-2 max-h-52 overflow-y-auto font-sans">
+                                      {selectedLead.aiAnalysis.chatHistory.map((msg: any, mIdx: number) => (
+                                        <div key={msg.id || mIdx} className="text-[11px] leading-relaxed">
+                                          <span className={`font-bold ${msg.role === "user" ? "text-blue-700" : "text-emerald-700"}`}>
+                                            {msg.role === "user" ? "Cliente" : "J4 AI"}:
+                                          </span>{" "}
+                                          <span className="text-slate-700 whitespace-pre-wrap">{msg.content}</span>
+                                          <span className="text-[9px] text-slate-400 ml-1.5 block sm:inline-block">({msg.timestamp})</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
 
                               </div>
                             </div>

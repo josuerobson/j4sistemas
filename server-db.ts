@@ -179,6 +179,30 @@ export async function updateInquiryStatus(id: string, status: Inquiry["status"])
   }
 }
 
+// Update AI analysis (including chat history)
+export async function updateInquiryAnalysis(id: string, aiAnalysis: any): Promise<void> {
+  const { isPostgres } = await initDb();
+
+  if (isPostgres && pool) {
+    try {
+      await pool.query("UPDATE contacts SET ai_analysis = $1 WHERE id = $2", [JSON.stringify(aiAnalysis), id]);
+      console.log(`[DB] AI Analysis da Inquiry ${id} atualizado no PostgreSQL.`);
+      return;
+    } catch (pgError) {
+      console.error("[DB] Erro ao atualizar AI Analysis no PostgreSQL, tentando no local...", pgError);
+    }
+  }
+
+  // Fallback
+  const localDb = readLocalDb();
+  const index = localDb.findIndex((x) => x.id === id);
+  if (index !== -1) {
+    localDb[index].aiAnalysis = aiAnalysis;
+    writeLocalDb(localDb);
+    console.log(`[DB] AI Analysis da Inquiry ${id} atualizado no backup LOCAL JSON.`);
+  }
+}
+
 // Delete inquiry
 export async function deleteInquiry(id: string): Promise<void> {
   const { isPostgres } = await initDb();

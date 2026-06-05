@@ -14,7 +14,7 @@ export function AIAssistant() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageContainerRef = useRef<HTMLDivElement>(null);
 
   const presets = [
     {
@@ -32,7 +32,12 @@ export function AIAssistant() {
   ];
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messageContainerRef.current) {
+      messageContainerRef.current.scrollTo({
+        top: messageContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
   };
 
   useEffect(() => {
@@ -109,12 +114,12 @@ export function AIAssistant() {
         </div>
         <div className="hidden sm:flex items-center gap-2 bg-blue-800/60 px-3 py-1.5 rounded-full text-xs text-blue-100 font-medium">
           <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
-          Powered by Gemini 3.5
+          Powered by Gemini 2.5
         </div>
       </div>
 
       {/* Message space */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50">
+      <div ref={messageContainerRef} className="flex-1 overflow-y-auto p-5 space-y-4 bg-slate-50">
         <AnimatePresence initial={false}>
           {messages.map((m) => (
             <motion.div
@@ -168,7 +173,6 @@ export function AIAssistant() {
             </div>
           </motion.div>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Suggests / Presets */}
